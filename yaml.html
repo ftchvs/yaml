@@ -32,23 +32,38 @@
     <button id="downloadButton" style="display:none;">Download CSV</button>
 
     <script>
-        let extractedValue = '';
+        let extractedValues = [];
 
-        function extractMappingValue(content) {
+        function extractMappingValues(content) {
             const lines = content.split('\n');
+            let inMappingSection = false;
+            let values = [];
+
             for (let line of lines) {
-                if (line.includes('value:')) {
+                if (line.trim().startsWith('__mapping:')) {
+                    inMappingSection = true;
+                    continue;
+                }
+
+                if (inMappingSection && line.includes('value:')) {
                     const match = line.match(/value:\s*"(.+)"/);
                     if (match && match[1]) {
-                        return match[1];
+                        values.push(match[1]);
                     }
                 }
+
+                // Check if we've left the mapping section
+                if (inMappingSection && line.trim().startsWith('__')) {
+                    break;
+                }
             }
-            return null;
+
+            return values;
         }
 
         function copyToClipboard() {
-            navigator.clipboard.writeText(extractedValue).then(() => {
+            const text = extractedValues.join('\n');
+            navigator.clipboard.writeText(text).then(() => {
                 alert('Copied to clipboard!');
             }, (err) => {
                 console.error('Could not copy text: ', err);
@@ -56,12 +71,13 @@
         }
 
         function downloadCSV() {
-            const blob = new Blob([extractedValue], { type: 'text/csv;charset=utf-8;' });
+            const csv = extractedValues.join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             if (link.download !== undefined) {
                 const url = URL.createObjectURL(blob);
                 link.setAttribute("href", url);
-                link.setAttribute("download", "extracted_value.csv");
+                link.setAttribute("download", "extracted_values.csv");
                 link.style.visibility = 'hidden';
                 document.body.appendChild(link);
                 link.click();
@@ -75,15 +91,15 @@
 
             reader.onload = function(e) {
                 const content = e.target.result;
-                extractedValue = extractMappingValue(content);
+                extractedValues = extractMappingValues(content);
                 
                 const output = document.getElementById('output');
-                if (extractedValue) {
-                    output.textContent = 'Extracted value: ' + extractedValue;
+                if (extractedValues.length > 0) {
+                    output.textContent = 'Extracted values:\n' + extractedValues.join('\n');
                     document.getElementById('copyButton').style.display = 'inline-block';
                     document.getElementById('downloadButton').style.display = 'inline-block';
                 } else {
-                    output.textContent = 'No matching value found in the file.';
+                    output.textContent = 'No matching values found in the mapping section.';
                     document.getElementById('copyButton').style.display = 'none';
                     document.getElementById('downloadButton').style.display = 'none';
                 }
