@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YAML Parser</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #result {
+            margin-top: 20px;
+            white-space: pre-wrap;
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>YAML Parser</h1>
+    <input type="file" id="fileInput" accept=".yml,.yaml">
+    <div id="result"></div>
+
+    <script>
+        function extractValues(obj) {
+            let results = [];
+            for (let key in obj) {
+                if (typeof obj[key] === 'object') {
+                    results = results.concat(extractValues(obj[key]));
+                } else if (key === 'value') {
+                    results.push(obj[key]);
+                }
+            }
+            return results;
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const yamlContent = e.target.result;
+                    const parsedYaml = jsyaml.load(yamlContent);
+                    const values = extractValues(parsedYaml);
+                    
+                    document.getElementById('result').textContent = 'Extracted values:\n' + values.join('\n');
+                } catch (error) {
+                    document.getElementById('result').textContent = 'Error parsing YAML: ' + error.message;
+                }
+            };
+
+            reader.readAsText(file);
+        });
+    </script>
+</body>
+</html>
