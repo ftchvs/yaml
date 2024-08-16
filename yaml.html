@@ -38,23 +38,37 @@
             const lines = content.split('\n');
             let inMappingSection = false;
             let values = [];
+            let indentLevel = 0;
 
-            for (let line of lines) {
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].trimEnd();
+                
                 if (line.trim().startsWith('__mapping:')) {
                     inMappingSection = true;
+                    indentLevel = line.search(/\S/);
                     continue;
                 }
 
-                if (inMappingSection && line.includes('value:')) {
-                    const match = line.match(/value:\s*"(.+)"/);
-                    if (match && match[1]) {
-                        values.push(match[1]);
+                if (inMappingSection) {
+                    let currentIndent = line.search(/\S/);
+                    
+                    if (currentIndent <= indentLevel && line.trim().startsWith('__')) {
+                        break;  // We've left the mapping section
                     }
-                }
 
-                // Check if we've left the mapping section
-                if (inMappingSection && line.trim().startsWith('__')) {
-                    break;
+                    if (line.includes('value:')) {
+                        const match = line.match(/value:\s*"(.+)"/);
+                        if (match && match[1]) {
+                            values.push(match[1]);
+                        } else {
+                            // Check if the value is on the next line
+                            let nextLine = lines[i + 1] ? lines[i + 1].trim() : '';
+                            if (nextLine.startsWith('"') && nextLine.endsWith('"')) {
+                                values.push(nextLine.slice(1, -1));
+                                i++;  // Skip the next line since we've processed it
+                            }
+                        }
+                    }
                 }
             }
 
