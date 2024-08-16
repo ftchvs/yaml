@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YAML Reader</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <title>Custom YAML-like Format Reader</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -18,73 +17,83 @@
             padding: 10px;
             white-space: pre-wrap;
         }
-        .button {
+        button {
             margin-top: 10px;
             margin-right: 10px;
             padding: 5px 10px;
-            display: none;
         }
     </style>
 </head>
 <body>
-    <h1>YAML Reader</h1>
-    <input type="file" id="fileInput" accept=".yml,.yaml">
+    <h1>Custom YAML-like Format Reader</h1>
+    <input type="file" id="fileInput" accept=".yml,.yaml,.txt">
     <div id="output"></div>
-    <button id="copyButton" class="button">Copy to Clipboard</button>
-    <button id="downloadButton" class="button">Download CSV</button>
+    <button id="copyButton" style="display:none;">Copy to Clipboard</button>
+    <button id="downloadButton" style="display:none;">Download CSV</button>
 
     <script>
-        const fileInput = document.getElementById('fileInput');
-                    const output = document.getElementById('output');
-        const copyButton = document.getElementById('copyButton');
-        const downloadButton = document.getElementById('downloadButton');
-        let extractedValues = [];
+        let extractedValue = '';
 
-        function extractValues(obj) {
-            return Object.entries(obj).reduce((acc, [key, value]) => {
-                if (typeof value === 'object') {
-                    return acc.concat(extractValues(value));
-                } else if (key === 'value') {
-                    acc.push(value);
+        function extractMappingValue(content) {
+            const lines = content.split('\n');
+            for (let line of lines) {
+                if (line.includes('value:')) {
+                    const match = line.match(/value:\s*"(.+)"/);
+                    if (match && match[1]) {
+                        return match[1];
+                    }
                 }
-                return acc;
-            }, []);
+            }
+            return null;
         }
 
         function copyToClipboard() {
-            navigator.clipboard.writeText(extractedValues.join('\n'))
-                .then(() => alert('Copied to clipboard!'))
-                .catch(err => console.error('Could not copy text: ', err));
+            navigator.clipboard.writeText(extractedValue).then(() => {
+                alert('Copied to clipboard!');
+            }, (err) => {
+                console.error('Could not copy text: ', err);
+            });
         }
 
         function downloadCSV() {
-            const blob = new Blob([extractedValues.join('\n')], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
+            const blob = new Blob([extractedValue], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
-            link.href = url;
-            link.download = "extracted_values.csv";
-            link.click();
-            URL.revokeObjectURL(url);
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", "extracted_value.csv");
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
         }
 
-        fileInput.addEventListener('change', function(e) {
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
             const reader = new FileReader();
+
             reader.onload = function(e) {
-                try {
-                    const parsedYaml = jsyaml.load(e.target.result);
-                    extractedValues = extractValues(parsedYaml);
-                    output.textContent = 'Extracted values:\n' + extractedValues.join('\n');
-                    copyButton.style.display = downloadButton.style.display = 'inline-block';
-                } catch (error) {
-                    console.error('Error parsing YAML:', error);
-                    output.textContent = 'Error parsing YAML file. Please make sure it\'s a valid YAML format.';
+                const content = e.target.result;
+                extractedValue = extractMappingValue(content);
+                
+                const output = document.getElementById('output');
+                if (extractedValue) {
+                    output.textContent = 'Extracted value: ' + extractedValue;
+                    document.getElementById('copyButton').style.display = 'inline-block';
+                    document.getElementById('downloadButton').style.display = 'inline-block';
+                } else {
+                    output.textContent = 'No matching value found in the file.';
+                    document.getElementById('copyButton').style.display = 'none';
+                    document.getElementById('downloadButton').style.display = 'none';
                 }
             };
-            reader.readAsText(e.target.files[0]);
+
+            reader.readAsText(file);
         });
 
-        copyButton.addEventListener('click', copyToClipboard);
-        downloadButton.addEventListener('click', downloadCSV);
+        document.getElementById('copyButton').addEventListener('click', copyToClipboard);
+        document.getElementById('downloadButton').addEventListener('click', downloadCSV);
     </script>
 </body>
 </html>
