@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YAML Parser</title>
+    <title>YAML Reader</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
     <style>
         body {
@@ -12,51 +12,79 @@
             margin: 0 auto;
             padding: 20px;
         }
-        #result {
+        #output {
             margin-top: 20px;
-            white-space: pre-wrap;
-            background-color: #f0f0f0;
+            border: 1px solid #ccc;
             padding: 10px;
-            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+        .button {
+            margin-top: 10px;
+            margin-right: 10px;
+            padding: 5px 10px;
+            display: none;
         }
     </style>
 </head>
 <body>
-    <h1>YAML Parser</h1>
+    <h1>YAML Reader</h1>
     <input type="file" id="fileInput" accept=".yml,.yaml">
-    <div id="result"></div>
+    <div id="output"></div>
+    <button id="copyButton" class="button">Copy to Clipboard</button>
+    <button id="downloadButton" class="button">Download CSV</button>
 
     <script>
+        const fileInput = document.getElementById('fileInput');
+                    const output = document.getElementById('output');
+        const copyButton = document.getElementById('copyButton');
+        const downloadButton = document.getElementById('downloadButton');
+        let extractedValues = [];
+
         function extractValues(obj) {
-            let results = [];
-            for (let key in obj) {
-                if (typeof obj[key] === 'object') {
-                    results = results.concat(extractValues(obj[key]));
+            return Object.entries(obj).reduce((acc, [key, value]) => {
+                if (typeof value === 'object') {
+                    return acc.concat(extractValues(value));
                 } else if (key === 'value') {
-                    results.push(obj[key]);
+                    acc.push(value);
                 }
-            }
-            return results;
+                return acc;
+            }, []);
         }
 
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            const reader = new FileReader();
+        function copyToClipboard() {
+            navigator.clipboard.writeText(extractedValues.join('\n'))
+                .then(() => alert('Copied to clipboard!'))
+                .catch(err => console.error('Could not copy text: ', err));
+        }
 
+        function downloadCSV() {
+            const blob = new Blob([extractedValues.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "extracted_values.csv";
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        fileInput.addEventListener('change', function(e) {
+            const reader = new FileReader();
             reader.onload = function(e) {
                 try {
-                    const yamlContent = e.target.result;
-                    const parsedYaml = jsyaml.load(yamlContent);
-                    const values = extractValues(parsedYaml);
-                    
-                    document.getElementById('result').textContent = 'Extracted values:\n' + values.join('\n');
+                    const parsedYaml = jsyaml.load(e.target.result);
+                    extractedValues = extractValues(parsedYaml);
+                    output.textContent = 'Extracted values:\n' + extractedValues.join('\n');
+                    copyButton.style.display = downloadButton.style.display = 'inline-block';
                 } catch (error) {
-                    document.getElementById('result').textContent = 'Error parsing YAML: ' + error.message;
+                    console.error('Error parsing YAML:', error);
+                    output.textContent = 'Error parsing YAML file. Please make sure it\'s a valid YAML format.';
                 }
             };
-
-            reader.readAsText(file);
+            reader.readAsText(e.target.files[0]);
         });
+
+        copyButton.addEventListener('click', copyToClipboard);
+        downloadButton.addEventListener('click', downloadCSV);
     </script>
 </body>
 </html>
