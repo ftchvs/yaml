@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Custom YAML-like Format Reader</title>
+    <title>YAML-like Format Reader</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -25,7 +25,7 @@
     </style>
 </head>
 <body>
-    <h1>Custom YAML-like Format Reader</h1>
+    <h1>YAML-like Format Reader</h1>
     <input type="file" id="fileInput" accept=".yml,.yaml,.txt">
     <div id="output"></div>
     <button id="copyButton" style="display:none;">Copy to Clipboard</button>
@@ -38,35 +38,24 @@
             const lines = content.split('\n');
             let inMappingSection = false;
             let values = [];
-            let indentLevel = 0;
 
-            for (let i = 0; i < lines.length; i++) {
-                let line = lines[i].trimEnd();
+            for (let line of lines) {
+                line = line.trim();
                 
-                if (line.trim().startsWith('__mapping:')) {
+                if (line.startsWith('__mapping:')) {
                     inMappingSection = true;
-                    indentLevel = line.search(/\S/);
                     continue;
                 }
 
                 if (inMappingSection) {
-                    let currentIndent = line.search(/\S/);
-                    
-                    if (currentIndent <= indentLevel && line.trim().startsWith('__')) {
+                    if (line.startsWith('__')) {
                         break;  // We've left the mapping section
                     }
 
-                    if (line.includes('value:')) {
+                    if (line.startsWith('value:')) {
                         const match = line.match(/value:\s*"(.+)"/);
                         if (match && match[1]) {
                             values.push(match[1]);
-                        } else {
-                            // Check if the value is on the next line
-                            let nextLine = lines[i + 1] ? lines[i + 1].trim() : '';
-                            if (nextLine.startsWith('"') && nextLine.endsWith('"')) {
-                                values.push(nextLine.slice(1, -1));
-                                i++;  // Skip the next line since we've processed it
-                            }
                         }
                     }
                 }
