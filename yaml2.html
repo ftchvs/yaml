@@ -50,13 +50,14 @@
             const lines = content.split('\n');
             let inMappingSection = false;
             let data = [];
+            let currentKey = '';
 
             for (let line of lines) {
                 line = line.trim();
                 
-                if (line.startsWith('__mapping:')) {
+                if (line === '__mapping:') {
                     inMappingSection = true;
-                    line = line.substring('__mapping:'.length).trim();
+                    continue;
                 }
 
                 if (inMappingSection) {
@@ -64,12 +65,13 @@
                         break;  // We've left the mapping section
                     }
 
-                    const parts = line.split(':');
-                    if (parts.length >= 3) {
-                        const attribute = parts[0].trim();
+                    if (line.endsWith(':')) {
+                        currentKey = line.slice(0, -1).trim();
+                    } else if (line.startsWith('value:')) {
                         const valueMatch = line.match(/value:\s*"(.+)"/);
-                        if (valueMatch && valueMatch[1]) {
-                            data.push([attribute, valueMatch[1]]);
+                        if (valueMatch && valueMatch[1] && currentKey) {
+                            data.push([currentKey, valueMatch[1]]);
+                            currentKey = '';
                         }
                     }
                 }
@@ -112,7 +114,7 @@
                 
                 const output = document.getElementById('output');
                 if (extractedData.length > 0) {
-                    let tableHtml = '<table><tr><th>Attribute</th><th>Value</th></tr>';
+                    let tableHtml = '<table><tr><th>Key</th><th>Value</th></tr>';
                     for (let row of extractedData) {
                         tableHtml += `<tr><td>${row[0]}</td><td>${row[1]}</td></tr>`;
                     }
